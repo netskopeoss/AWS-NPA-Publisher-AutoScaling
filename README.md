@@ -1,7 +1,7 @@
 ﻿
 
 
-Deploying Netskope Private Access Publisher with Amazon EC2 Auto Scaling
+# Deploying Netskope Private Access Publisher with Amazon EC2 Auto Scaling
 
 This document will guide you how to deploy Netskope Private Access Amazon EC2 Auto Scaling.
 
@@ -13,7 +13,7 @@ Amazon EC2 Auto Scaling helps you maintain application availability and allows y
 
 Deploying Netskope Private Publisher using Amazon EC2 Auto Scaling group allows you to dynamically respond to the users’ traffic demand and to optimize cost of running your Netskope Private Access Publishers’ EC2 instances. 
 
-*Overview*
+## Overview
 
 The solution consists of AWS CloudFormation template NPAPublisherAuto Scalling.yaml which deploys the following main resources:
 
@@ -38,7 +38,13 @@ The solution also creates a NetskopeNPACustomResourceLF custom resource AWS Lamb
 
 This solution is a regional solution and can / may be deployed independently in multiple AWS regions. You can build a cross-region redundant NPA Publisher group following the same naming convention below.
 
-*Naming convention*
+## Architecture diagram
+
+![](./media/image001.png)
+
+*Fig 1. Netskope Private Access Publisher with Amazon EC2 Auto Scaling*
+
+## Naming convention
 
 This solution requires a specific naming convention between the Netskope Private Access Publisher EC2 Auto Scaling group and the Netskope Private Applications using this Publishers’ group. 
 
@@ -46,14 +52,8 @@ For the solution to function properly, Netskope Private Applications names shall
 
 This will allow the provisioning Lambda function to identify the applications using the specific NPA Publisher group and to update their configuration automatically. You can deploy a  Netskope Private Access Publisher EC2 Auto Scaling group with the same name in more than one AWS region. Both deployments will be serving the same Netskope Private Applications on your Netskope tenant, which essentially allows you to build a cross-region redundant ZTNA solution. 
 
-*Architecture diagram*
 
-![](./media/image001.png)
-
-*Fig 1. Netskope Private Access Publisher with Amazon EC2 Auto Scaling*
-
-
-*Prerequisites* 
+## Prerequisites
 
 The following prerequisites are required to implement the Netskope Private Access Publisher Auto Scaling:  
 
@@ -76,9 +76,9 @@ For the best security, to enable Netskope Private Access Publisher communication
 - [AWS IAM](https://aws.amazon.com/iam/)
 
 
-*Deployment and Configuration Steps*
+## Deployment and Configuration Steps
 
-## Deploying Netskope Private Access EC2 Auto Scaling group.
+### Deploying Netskope Private Access EC2 Auto Scaling group.
 Download the [NPAPublisherAutoscalling.yaml](https://github.com/netskopeoss/AWS-NPA-Publisher-AutoScaling/blob/main/NPAPublisherAutoscalling.yaml) to your computer.
 
 **Step 1.1:** **Identifying Amazon Machine Images (AMI) ID for the Netskope Publisher EC2 image on Amazon Marketplace.**
@@ -156,7 +156,7 @@ Description automatically generated](./media/image010.png)
 
 Description automatically generated](./media/image011.png)
 
-*Monitoring*
+## Monitoring
 
 1.2.8. When CloudFormation stack is in the CREATE\_COMPLETE state, navigate to the Resources tab and see the resources provisioned by the CloudFormation stack.
 
