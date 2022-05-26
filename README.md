@@ -103,29 +103,26 @@ Prior to deploying the NPA Publisher Auto Scaling group you need to identify the
 
 You can create your custom EC2 image from the one provided by Netskope, hardening it according to your organization's security standards, following the documentation [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/creating-an-ami-ebs.html). Then you can use this custom AMI for your deployment.
 
-![](./media/image005.png)
+![](./media/image005.png) </br>
 
 **Step 1.2:** **Deploy the CloudFormation Stack on the AWS Security Management account**
 
 Sign into the AWS Security Management account as administrator and deploy the Netskope Cloud Exchange CloudFormations stack. 
 
-1.2.1.  Navigate to the AWS CloudFormation management console and choose the region you’d like to deploy the automation solutions in the Security Management account. 
+1.2.1.  Navigate to the AWS CloudFormation management console and choose the region you’d like to deploy the automation solutions in the Security Management account. </br>
 1.2.2. Click **Create Stack** and choose **With new resources (standard)**.
 
-![Graphical user interface, application, Teams
-
-Description automatically generated](./media/image006.png)
+![](./media/image006.png)
 
 1.2.3. Choose **Upload a template file** then click on Choose file. Choose the NPAPublisherAutoscalling.yaml from the directory on your disk where you downloaded it to, click **Open** and then click **Next**.
 
-![Graphical user interface, text, application, email
-
-Description automatically generated](./media/image007.png)
+![](./media/image007.png)
 
 1.2.4. Enter the stack name and the parameters for your deployment:
 
-|<p>Netskope tenant FQDN, for example mytenant.goskope.com</p><p></p>|Enter your Netskope tenan FQDN here (mytenant.goskope.com)|
+|<p>Parameter|Description|
 | :- | :- |
+|<p>Netskope tenant FQDN, for example mytenant.goskope.com</p><p></p>|Enter your Netskope tenan FQDN here (mytenant.goskope.com)|
 |Choose if you'd like to create a new AWS Secrets Manager key for Netskope API token or to use the existing one|Choose Yes or No to provision new Netskope API v2 token in AWS Secrets Manager|
 |<p>If you're using the existing AWS Secrets Manager secret for Netskope API token enter its ARN here. Assure this secret resource-based policy allows the Lambda function created by this template to use this secret</p><p></p>|If an existing Netskope API v2 token in AWS Secrets Manager will be used, enter the secret ARN here. The Secrets Manager secret for Netskope API should be provisioned in the same region|
 |Netskope API v2 token if you're creating a new secret in AWS Secrets Manager|If new Netskope API v2 token has to be provisioned in AWS Secrets Manager, enter it here. Follow the documentation [here](https://docs.netskope.com/en/rest-api-v2-overview-312207.html) to learn how to obtain Netskope REST API v2 access token. |
@@ -143,27 +140,23 @@ Description automatically generated](./media/image007.png)
 
 ![](./media/image009.png)
 
-1.2.5. Click **Next**.
+1.2.5. Click **Next**. </br>
 1.2.6. Optionally, enter the Tags for your CloudFormation stack and / or click Next.
 
-![Graphical user interface, application
-
-Description automatically generated](./media/image010.png)
+![](./media/image010.png)
 
 1.2.7. Acknowledge creating IAM resources and click **Create stack**.
 
-![Graphical user interface, text, application
-
-Description automatically generated](./media/image011.png)
+![](./media/image011.png)
 
 ## Monitoring
 
-1.2.8. When CloudFormation stack is in the CREATE\_COMPLETE state, navigate to the Resources tab and see the resources provisioned by the CloudFormation stack.
+When CloudFormation stack is in the CREATE\_COMPLETE state, navigate to the Resources tab and see the resources provisioned by the CloudFormation stack.
 
 ![](./media/image012.png)
 
 
-1.2.9. Click on the NPAPublisherSecurityGroup resource and check the Inbound and Outbound rules for the EC2 Auto Scaling Instances:
+ Click on the NPAPublisherSecurityGroup resource and check the Inbound and Outbound rules for the EC2 Auto Scaling Instances:
 
 ![](./media/image013.png)![](./media/image014.png)
 
@@ -171,27 +164,27 @@ Note that NPA Publisher instances don't require any inbound rules. If you’d li
 
 You can further harden the outbound rules by limiting outbound access  only to the Netskope IP address ranges, your DNS service and the Private Applications this specific Publisher Group is serving. 
 
-1.2.10. Review the Auto Scaling group configuration and status. Go to the Amazon EC2 Management console, Auto Scaling Groups, choose your Netskope Publisher Auto Scaling group and to Instance management tab:
+Review the Auto Scaling group configuration and status. Go to the Amazon EC2 Management console, Auto Scaling Groups, choose your Netskope Publisher Auto Scaling group and to Instance management tab:
 
-` `![](./media/image015.png)
+![](./media/image015.png)
 
-1.2.11. To monitor the NPA Lifecycle management AWS Lambda function, navigate to the CloudFormation stack Resources tab:
+To monitor the NPA Lifecycle management AWS Lambda function, navigate to the CloudFormation stack Resources tab:
 
 ![](./media/image012.png)
 
-1.2.12. Click on the NetskopeNPACustomResourceLF, then in the AWS Lambda management console go to Monitor and click on the View logs in CloudWatch:
+ Click on the NetskopeNPACustomResourceLF, then in the AWS Lambda management console go to Monitor and click on the View logs in CloudWatch:
 
 ![](./media/image016.png)
 
-1.2.13. Choose the latest CloudWatch stream:
+ Choose the latest CloudWatch stream:
 
 ![](./media/image017.png)
 
-1.2.14. The latest Netskope Lifecycle AWS Lambda function logs will appear:
+The latest Netskope Lifecycle AWS Lambda function logs will appear:
 
 ![](./media/image018.png)
 
-1.2.15. To monitor AWS Systems Manager Run Command status, go to the AWS Systems Manager console, Run Command, Command history and check the status of the Registering NPA Publisher command
+To monitor AWS Systems Manager Run Command status, go to the AWS Systems Manager console, Run Command, Command history and check the status of the Registering NPA Publisher command
 
 ![](./media/image019.png)
 
