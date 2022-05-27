@@ -128,7 +128,7 @@ Conditions:
 Mappings:
       SourceCode:
           General:
-              S3Bucket: 'yd-source'
+              S3Bucket: 'netskope-marketplace'
               S3Prefix: "NPAPublisherAutoscalling"
 
 Resources:
