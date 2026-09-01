@@ -1,0 +1,88 @@
+project:
+  name: npa-publisher-autoscaling
+  owner: netskope-oss
+  regions:
+    - us-east-1
+    - us-west-2
+  package_lambda: false
+  lambda_zip_path: scripts/NPAPublisherAutoscalling.zip
+  lambda_source_path: scripts/
+  s3_bucket: ''  # Leave empty to use TaskCat-managed bucket
+
+tests:
+  # Test 1: Default parameters with new API token
+  default-new-token:
+    template: templates/npa-publisher-autoscaling.yaml
+    parameters:
+      NPAPublisherGroupName: taskcat-test-publisher-$[taskcat_random-string]
+      NPAPublisherAMIId: $[taskcat_getaz_1]  # Will be resolved to valid AMI
+      NPAPublisherKey: $[taskcat_getkeypair]
+      VPC: $[taskcat_getvpc]
+      NPAPublisherSubnets: $[taskcat_getsubnets_2]
+      NetskopeTenantFQDN: test.goskope.com
+      ProvisionNewAPIToken: 'yes'
+      NetskopeAPIToken: test-token-placeholder-12345
+      NPAPublisherMinCapacity: '0'
+      NPAPublisherMaxCapacity: '0'
+      NPAPublisherDesiredCapacity: '0'
+      CPUPolicyTargetValue: '70'
+    regions:
+      - us-east-1
+
+  # Test 2: Existing API token scenario
+  existing-token:
+    template: templates/npa-publisher-autoscaling.yaml
+    parameters:
+      NPAPublisherGroupName: taskcat-test-existing-$[taskcat_random-string]
+      NPAPublisherAMIId: $[taskcat_getaz_1]
+      NPAPublisherKey: $[taskcat_getkeypair]
+      VPC: $[taskcat_getvpc]
+      NPAPublisherSubnets: $[taskcat_getsubnets_2]
+      NetskopeTenantFQDN: test.goskope.com
+      ProvisionNewAPIToken: 'no'
+      ExistingNetskopeAPITokenARN: arn:aws:secretsmanager:us-east-1:123456789012:secret:test-secret
+      NPAPublisherMinCapacity: '0'
+      NPAPublisherMaxCapacity: '0'
+      NPAPublisherDesiredCapacity: '0'
+      CPUPolicyTargetValue: '70'
+    regions:
+      - us-east-1
+
+  # Test 3: Multi-region deployment
+  multi-region:
+    template: templates/npa-publisher-autoscaling.yaml
+    parameters:
+      NPAPublisherGroupName: taskcat-multi-region-$[taskcat_random-string]
+      NPAPublisherAMIId: $[taskcat_getaz_1]
+      NPAPublisherKey: $[taskcat_getkeypair]
+      VPC: $[taskcat_getvpc]
+      NPAPublisherSubnets: $[taskcat_getsubnets_2]
+      NetskopeTenantFQDN: test.goskope.com
+      ProvisionNewAPIToken: 'yes'
+      NetskopeAPIToken: test-token-multi-region-67890
+      NPAPublisherMinCapacity: '0'
+      NPAPublisherMaxCapacity: '0'
+      NPAPublisherDesiredCapacity: '0'
+      CPUPolicyTargetValue: '70'
+    regions:
+      - us-east-1
+      - us-west-2
+
+  # Test 4: Custom capacity settings
+  custom-capacity:
+    template: templates/npa-publisher-autoscaling.yaml
+    parameters:
+      NPAPublisherGroupName: taskcat-custom-cap-$[taskcat_random-string]
+      NPAPublisherAMIId: $[taskcat_getaz_1]
+      NPAPublisherKey: $[taskcat_getkeypair]
+      VPC: $[taskcat_getvpc]
+      NPAPublisherSubnets: $[taskcat_getsubnets_2]
+      NetskopeTenantFQDN: test.goskope.com
+      ProvisionNewAPIToken: 'yes'
+      NetskopeAPIToken: test-token-custom-capacity
+      NPAPublisherMinCapacity: '0'
+      NPAPublisherMaxCapacity: '1'
+      NPAPublisherDesiredCapacity: '0'
+      CPUPolicyTargetValue: '80'
+    regions:
+      - us-west-2

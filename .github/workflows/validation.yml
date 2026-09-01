@@ -1,0 +1,131 @@
+name: Code Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  cloudformation-validation:
+    name: CloudFormation Template Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install cfn-lint
+        run: pip install cfn-lint
+
+      - name: Validate CloudFormation Templates
+        run: |
+          cfn-lint --version
+          cfn-lint templates/*.yaml --format parseable --ignore-checks W
+
+  secret-scanning:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install detect-secrets
+        run: pip install detect-secrets
+
+      - name: Run secret detection
+        run: |
+          detect-secrets --version
+          detect-secrets scan --all-files --baseline .secrets.baseline
+
+  python-quality:
+    name: Python Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python linting tools
+        run: |
+          pip install bandit flake8 black
+
+      - name: Run Bandit (security scanner)
+        run: |
+          bandit --version
+          bandit -ll --skip B101 -r scripts/ || true
+
+      - name: Run Flake8 (linter)
+        run: |
+          flake8 --version
+          flake8 --max-line-length=120 --extend-ignore=E203,W503,T000,T001,T002,T003,T004,T005 scripts/ || true
+
+      - name: Run Black (formatter check)
+        run: |
+          black --version
+          black --check scripts/ || true
+
+  file-checks:
+    name: File Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for trailing whitespace
+        run: |
+          ! git grep -I --line-number '[[:blank:]]$' -- ':!*.patch' ':!*.diff' || {
+            echo "Found trailing whitespace in the files above."
+            exit 1
+          }
+
+      - name: Check for merge conflicts
+        run: |
+          ! git grep -I --line-number '^<<<<<<< ' -- ':!*.patch' ':!*.diff' || {
+            echo "Found merge conflict markers in the files above."
+            exit 1
+          }
+
+      - name: Check for large files
+        run: |
+          max_kb=1000
+          large_files=$(find . -type f -size +${max_kb}k -not -path "./.git/*" -not -path "./node_modules/*" || true)
+          if [ -n "$large_files" ]; then
+            echo "Found files larger than ${max_kb}KB:"
+            echo "$large_files"
+            exit 1
+          fi
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [cloudformation-validation, secret-scanning, python-quality, file-checks]
+    if: always()
+    steps:
+      - name: Check validation results
+        run: |
+          echo "CloudFormation Validation: ${{ needs.cloudformation-validation.result }}"
+          echo "Secret Scanning: ${{ needs.secret-scanning.result }}"
+          echo "Python Quality: ${{ needs.python-quality.result }}"
+          echo "File Checks: ${{ needs.file-checks.result }}"
+
+          if [ "${{ needs.cloudformation-validation.result }}" != "success" ] || \
+             [ "${{ needs.secret-scanning.result }}" != "success" ]; then
+            echo "❌ Critical validation checks failed"
+            exit 1
+          fi
+
+          echo "✅ All critical validation checks passed"

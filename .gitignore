@@ -1,3 +1,62 @@
 
 # Ignore future zip uploads
 *.zip
+# Exception: Include the Lambda deployment package
+!scripts/NPAPublisherAutoscalling.zip
+
+# API Specifications (internal only - not for GitHub)
+api-spec/
+
+# TaskCat artifacts
+taskcat_outputs/
+.taskcat/
+.taskcat_overrides.yml
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+*.orig
+
+# AWS credentials (never commit these!)
+.aws/
+credentials
+config
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+/scripts/NPAPublisherAutoscalling/

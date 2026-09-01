@@ -1,0 +1,16 @@
+# CFN-Nag Deny List
+# Rules to suppress specific cfn-nag warnings with justification
+# Only use for legitimate exceptions to security rules
+
+RulesToSuppress:
+  # Lambda functions intentionally not in VPC (need internet access for Netskope API)
+  - id: W89
+    reason: "Lambda functions require internet access to call Netskope REST API v2"
+
+  # Lambda functions without reserved concurrent executions
+  - id: W92
+    reason: "Concurrent execution limits not required for this use case - lifecycle hooks have timeout protection"
+
+  # Lambda functions without DLQ
+  - id: W58
+    reason: "DLQ not required - failures are handled by Auto Scaling lifecycle hook timeout and retry"

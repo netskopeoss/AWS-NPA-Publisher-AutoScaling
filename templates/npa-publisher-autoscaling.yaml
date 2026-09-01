@@ -1,27 +1,33 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: "NPA Publisher Autoscalling 1.0"
+Description: "NPA Publisher Autoscalling 1.0 (qs-xxxxxxx)"
 Metadata:
+  cfnlint:
+    config:
+      ignore_checks:
+        - W3002  # Parameters used conditionally
+        - W2001  # Parameter may not be used based on conditions
+        - E3030  # python3.12 is a valid Lambda runtime; QuickStart rules list is outdated
   AWS::CloudFormation::Interface:
-    ParameterGroups: 
-      - 
-        Label: 
+    ParameterGroups:
+      -
+        Label:
           default: "Netskope tenant info"
-        Parameters: 
+        Parameters:
           - NetskopeTenantFQDN
           - ProvisionNewAPIToken
           - ExistingNetskopeAPITokenARN
           - NetskopeAPIToken
-      - 
-        Label: 
+      -
+        Label:
           default: "VPC info"
-        Parameters: 
+        Parameters:
           - VPC
           - NPAPublisherSubnets
-      - 
-        Label: 
+      -
+        Label:
           default: "Netskope NPA Publisher info"
-        Parameters: 
+        Parameters:
           - NPAPublisherGroupName
           - NPAPublisherAMIId
           - NPAPublisherKey
@@ -29,6 +35,13 @@ Metadata:
           - NPAPublisherMaxCapacity
           - NPAPublisherDesiredCapacity
           - CPUPolicyTargetValue
+      -
+        Label:
+          default: "Cost allocation and tagging"
+        Parameters:
+          - CostCenterTag
+          - ProjectTag
+          - EnvironmentTag
     ParameterLabels:
       NetskopeTenantFQDN:
         default: Netskope tenant FQDN, for example mytenant.goskope.com
@@ -41,7 +54,7 @@ Metadata:
       VPC:
         default: VPC id where you'd like your NPA publisher auto scalling group to be deployed
       NPAPublisherSubnets:
-        default: List of VPC subnets where you'd like your NPA publisher auto scalling group to be deployed
+        default: Select Private Subnets with internet connectivity via NAT Gateway
       NPAPublisherGroupName:
         default: NPA Publisher Auto Scaling Group Name
       NPAPublisherAMIId:
@@ -56,49 +69,68 @@ Metadata:
         default: NPA publisher desired capacity
       CPUPolicyTargetValue:
         default: CPU %% value to trigger auto scalling
-     
+      CostCenterTag:
+        default: Cost center for billing and resource allocation
+      ProjectTag:
+        default: Project name for resource tracking and reporting
+      EnvironmentTag:
+        default: Environment type (Production, Staging, Development, Test)
+
 
 Parameters:
   NPAPublisherGroupName:
-    Default: ""
     Description: 'The new NPA publisher auto scalling group name. All private applications names served by this publisher group should start from this value'
     Type: String
+    MinLength: 3
+    MaxLength: 64
+    AllowedPattern: '^[a-zA-Z][a-zA-Z0-9-]*$'
+    ConstraintDescription: 'Must start with a letter and contain only alphanumeric characters and hyphens'
+
   NPAPublisherAMIId:
-    Default: ""
     Description: 'NPA publisher AMI id'
     Type: AWS::EC2::Image::Id
+
   NPAPublisherKey:
-    Default: ""
     Description: 'NPA publisher KeyPair Name'
     Type: AWS::EC2::KeyPair::KeyName
 
-
   NPAPublisherSubnets:
-    Description: 'NPA publisher Availability Zones'
+    Description: 'NPA publisher Availability Zones (minimum 2 subnets in different AZs required)'
     Type: "List<AWS::EC2::Subnet::Id>"
-    
+
   VPC:
-    Default: ""
     Description: 'NPA publisher VPC'
     Type: AWS::EC2::VPC::Id
 
   NPAPublisherMinCapacity:
-    Default: "2"
+    Default: 2
     Description: 'NPA publisher minimum capacity'
-    Type: String
+    Type: Number
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: 'Must be between 0 and 100'
+
   NPAPublisherMaxCapacity:
-    Default: "2"
+    Default: 2
     Description: 'NPA publisher maximum capacity'
-    Type: String
+    Type: Number
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: 'Must be between 0 and 100'
+
   NPAPublisherDesiredCapacity:
-    Default: "2"
+    Default: 2
     Description: 'NPA publisher Desired capacity'
-    Type: String
+    Type: Number
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: 'Must be between 0 and 100'
 
   NetskopeTenantFQDN:
-    Default: ""
-    Description: 'Enter your Netskope tenan FQDN here (mytenant.goskope.com)'
+    Description: 'Enter your Netskope tenant FQDN here (mytenant.goskope.com)'
     Type: String
+    AllowedPattern: '^[a-z0-9][a-z0-9-]*\.goskope\.com$'
+    ConstraintDescription: 'Must be a valid Netskope tenant FQDN ending with .goskope.com'
 
   ProvisionNewAPIToken:
     Default: 'yes'
@@ -107,21 +139,53 @@ Parameters:
       - 'yes'
       - 'no'
     Type: 'String'
+
   NetskopeAPIToken:
     NoEcho: true
     Default: ""
     Description: 'If new Netskope API v2 token has to be provisioned in AWS Secrets Manager, enter it here'
     Type: String
+
   ExistingNetskopeAPITokenARN:
-    Default: ""
     Description: 'If an existing Netskope API v2 token in AWS Secrets Manager will be used, enter the secret ARN here. The Secrets Manager secret for Netskope API should be provisioned in the same region'
     Type: 'String'
+    AllowedPattern: '^(arn:(aws|aws-cn|aws-us-gov):secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:[a-zA-Z0-9/_+=.@-]+)?$'
+    ConstraintDescription: 'Must be a valid AWS Secrets Manager secret ARN or empty'
+    Default: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:placeholder'
+
   CPUPolicyTargetValue:
-    Default: "70"
-    Description: 'NPA publisher target CPU %%'
-    Type: 'String'
-  
-Conditions: 
+    Default: 70
+    Description: 'NPA publisher target CPU percentage for scaling'
+    Type: Number
+    MinValue: 10
+    MaxValue: 90
+    ConstraintDescription: 'Must be between 10 and 90'
+
+  CostCenterTag:
+    Description: 'Cost center for resource allocation and billing'
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    Default: 'IT-Operations'
+
+  ProjectTag:
+    Description: 'Project identifier for resource tracking'
+    Type: String
+    MinLength: 1
+    MaxLength: 255
+    Default: 'NPA-Publisher-AutoScaling'
+
+  EnvironmentTag:
+    Description: 'Environment type (e.g., Production, Development, Staging)'
+    Type: String
+    Default: 'Production'
+    AllowedValues:
+      - 'Production'
+      - 'Staging'
+      - 'Development'
+      - 'Test'
+
+Conditions:
   ToProvisionNewAPIToken: !Equals
       - !Ref ProvisionNewAPIToken
       - 'yes'
@@ -139,17 +203,28 @@ Resources:
       Description: Netskope API secret token V2
       SecretString: !Sub '{"token":"${NetskopeAPIToken}"}'
       Tags:
-        -
-          Key: Name
+        - Key: Name
           Value: NetskopeAPIToken
+        - Key: CostCenter
+          Value: !Ref CostCenterTag
+        - Key: Project
+          Value: !Ref ProjectTag
+        - Key: Environment
+          Value: !Ref EnvironmentTag
 
   NPAPublisherInstanceRole:
       Type: 'AWS::IAM::Role'
-      Properties: 
-        RoleName: !Join [ "-", [  !Ref NPAPublisherGroupName, 'InstanceRole', !Ref 'AWS::Region' ]]
-        Tags: 
-          - Key: Type
-            Value: !Join [ "-", [  !Ref NPAPublisherGroupName, 'InstanceRole', !Ref 'AWS::Region' ]]
+      Properties:
+        RoleName: !Sub '${NPAPublisherGroupName}-InstanceRole-${AWS::Region}'
+        Tags:
+          - Key: Name
+            Value: !Sub '${NPAPublisherGroupName}-InstanceRole'
+          - Key: CostCenter
+            Value: !Ref CostCenterTag
+          - Key: Project
+            Value: !Ref ProjectTag
+          - Key: Environment
+            Value: !Ref EnvironmentTag
         AssumeRolePolicyDocument:
           Statement:
             - Effect: Allow
@@ -160,12 +235,12 @@ Resources:
                 - sts:AssumeRole
         Path: '/'
         ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
 
   NPAPublisherSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Join [ "-", [  !Ref NPAPublisherGroupName , 'SecurityGroup'] ]
+      GroupName: !Sub '${NPAPublisherGroupName}-SecurityGroup'
       GroupDescription: "Security group with only egress rule"
       VpcId: !Ref VPC
       SecurityGroupEgress:
@@ -177,59 +252,93 @@ Resources:
         FromPort: 0
         ToPort: 65535
         CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub '${NPAPublisherGroupName}-SecurityGroup'
+        - Key: CostCenter
+          Value: !Ref CostCenterTag
+        - Key: Project
+          Value: !Ref ProjectTag
+        - Key: Environment
+          Value: !Ref EnvironmentTag
 
   NPAPublisherInstanceProfile:
     Type: AWS::IAM::InstanceProfile
-    DependsOn: NPAPublisherInstanceRole
-    Properties: 
+    Properties:
         Path: "/"
-        InstanceProfileName: !Join [ "-", [  !Ref NPAPublisherGroupName , 'InstanceProfile', !Ref 'AWS::Region' ]]
-        Roles: 
-          - 
+        InstanceProfileName: !Sub '${NPAPublisherGroupName}-InstanceProfile-${AWS::Region}'
+        Roles:
+          -
             Ref: NPAPublisherInstanceRole
 
   NPAPublisherLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
-    Properties: 
-      LaunchTemplateData: 
-          IamInstanceProfile: 
+    Properties:
+      LaunchTemplateData:
+          IamInstanceProfile:
             Arn: !GetAtt
               - NPAPublisherInstanceProfile
               - Arn
           ImageId: !Ref NPAPublisherAMIId
           InstanceType: 't3.large'
           KeyName: !Ref NPAPublisherKey
-          SecurityGroupIds: 
+          SecurityGroupIds:
             - !Ref NPAPublisherSecurityGroup
-          Monitoring: 
+          Monitoring:
             Enabled: true
-          TagSpecifications: 
+          TagSpecifications:
             - ResourceType: instance
-              Tags: 
+              Tags:
                 - Key: Name
                   Value: !Ref NPAPublisherGroupName
-      LaunchTemplateName: !Join [ "-", [  !Ref NPAPublisherGroupName , 'LaunchTemplate' ] ]
+                - Key: CostCenter
+                  Value: !Ref CostCenterTag
+                - Key: Project
+                  Value: !Ref ProjectTag
+                - Key: Environment
+                  Value: !Ref EnvironmentTag
+      LaunchTemplateName: !Sub '${NPAPublisherGroupName}-LaunchTemplate'
+      TagSpecifications:
+        - ResourceType: launch-template
+          Tags:
+            - Key: Name
+              Value: !Sub '${NPAPublisherGroupName}-LaunchTemplate'
+            - Key: CostCenter
+              Value: !Ref CostCenterTag
+            - Key: Project
+              Value: !Ref ProjectTag
+            - Key: Environment
+              Value: !Ref EnvironmentTag
 
-  NPAPublisherAutoscallingGroup:       
+  NPAPublisherAutoscallingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
-    Properties: 
+    Properties:
       AutoScalingGroupName: !Ref NPAPublisherGroupName
       VPCZoneIdentifier: !Ref NPAPublisherSubnets
       Cooldown: 300
       DesiredCapacity: 0
-      LaunchTemplate: 
+      LaunchTemplate:
         LaunchTemplateId: !Ref NPAPublisherLaunchTemplate
         Version: !GetAtt NPAPublisherLaunchTemplate.LatestVersionNumber
       MaxSize: 0
       MinSize: 0
-      MetricsCollection: 
+      MetricsCollection:
         - Granularity: "1Minute"
-          Metrics: 
+          Metrics:
             - "GroupMinSize"
             - "GroupMaxSize"
       Tags:
         - Key: Name
           Value: !Ref NPAPublisherGroupName
+          PropagateAtLaunch: "true"
+        - Key: CostCenter
+          Value: !Ref CostCenterTag
+          PropagateAtLaunch: "true"
+        - Key: Project
+          Value: !Ref ProjectTag
+          PropagateAtLaunch: "true"
+        - Key: Environment
+          Value: !Ref EnvironmentTag
           PropagateAtLaunch: "true"
 
   NPATargetCPUScalingPolicy:
@@ -244,11 +353,17 @@ Resources:
 
   NPACallNetskopeAPIv2LFRole:
       Type: 'AWS::IAM::Role'
-      Properties: 
-        RoleName: !Sub "${NPAPublisherGroupName}LFRole${AWS::Region}"
-        Tags: 
-          - Key: Type
-            Value: NPACallNetskopeAPIv2LFRole
+      Properties:
+        RoleName: !Sub '${NPAPublisherGroupName}-LFRole-${AWS::Region}'
+        Tags:
+          - Key: Name
+            Value: !Sub '${NPAPublisherGroupName}-LFRole'
+          - Key: CostCenter
+            Value: !Ref CostCenterTag
+          - Key: Project
+            Value: !Ref ProjectTag
+          - Key: Environment
+            Value: !Ref EnvironmentTag
         AssumeRolePolicyDocument:
           Statement:
             - Effect: Allow
@@ -259,7 +374,7 @@ Resources:
                 - sts:AssumeRole
         Path: '/'
         Policies:
-            - PolicyName: !Sub "${NPAPublisherGroupName}LFPolicy${AWS::Region}"
+            - PolicyName: !Sub '${NPAPublisherGroupName}-LFPolicy-${AWS::Region}'
               PolicyDocument:
                 Statement:
                   - Effect: Allow
@@ -268,13 +383,13 @@ Resources:
                       - "logs:CreateLogStream"
                       - "logs:PutLogEvents"
                     Resource:
-                      - "*"
-        
+                      - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${NPAPublisherGroupName}LambdaFunction:*'
+
                   - Effect: Allow
                     Action:
                       - 'secretsmanager:GetSecretValue'
                       - 'secretsmanager:DescribeSecret'
-                    Resource: 
+                    Resource:
                       'Fn::If':
                           - ToProvisionNewAPIToken
                           - !Ref APISecret
@@ -282,25 +397,26 @@ Resources:
                   - Effect: Allow
                     Action:
                       - 'autoscaling:CompleteLifecycleAction'
-                    Resource: 
-                      -  !Join [ '/', [!Sub 'arn:aws:autoscaling:*:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName', !Ref NPAPublisherAutoscallingGroup ]]
+                    Resource:
+                      -  !Sub 'arn:${AWS::Partition}:autoscaling:*:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${NPAPublisherAutoscallingGroup}'
                   - Effect: Allow
                     Action:
                       - 'ssm:SendCommand'
                     Resource:
-                          - !Sub 'arn:aws:ec2:*:${AWS::AccountId}:instance/*'
+                          - !Sub 'arn:${AWS::Partition}:ec2:*:${AWS::AccountId}:instance/*'
                     Condition:
                       StringLike:
                         'ssm:resourceTag/Name': !Ref NPAPublisherGroupName
                   - Effect: Allow
                     Action:
                       - 'ssm:DescribeInstanceInformation'
-                    Resource: '*'
+                    Resource:
+                      - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:*'
                   - Effect: Allow
                     Action:
                       - 'ssm:SendCommand'
                     Resource:
-                          - !Sub 'arn:aws:ssm:*:*:document/*'
+                          - !Sub 'arn:${AWS::Partition}:ssm:*:*:document/*'
                   - Effect: Allow
                     Action:
                       - 'ssm:GetCommandInvocation'
@@ -309,7 +425,7 @@ Resources:
   NPAPublisherLifecycleHookLAUNCHING:
     Type: 'AWS::AutoScaling::LifecycleHook'
     Properties:
-      LifecycleHookName: !Join [ "-",  [!Ref NPAPublisherGroupName , 'LifecycleHookLAUNCHING' ]]
+      LifecycleHookName: !Sub '${NPAPublisherGroupName}-LifecycleHookLAUNCHING'
       AutoScalingGroupName: !Ref NPAPublisherAutoscallingGroup
       DefaultResult: ABANDON
       HeartbeatTimeout: 900
@@ -318,47 +434,56 @@ Resources:
   NPAPublisherLifecycleHookTERMINATING:
     Type: 'AWS::AutoScaling::LifecycleHook'
     Properties:
-      LifecycleHookName: !Join [ "-",  [!Ref NPAPublisherGroupName , 'LifecycleHookTERMINATING' ]]
+      LifecycleHookName: !Sub '${NPAPublisherGroupName}-LifecycleHookTERMINATING'
       AutoScalingGroupName: !Ref NPAPublisherAutoscallingGroup
       DefaultResult: ABANDON
       HeartbeatTimeout: 900
       LifecycleTransition: "autoscaling:EC2_INSTANCE_TERMINATING"
 
-  NPAPublisherLifecycleEventRule: 
+  NPAPublisherLifecycleEventRule:
     Type: AWS::Events::Rule
-    Properties: 
+    Properties:
       Description: "EventRule"
-      EventPattern: 
-        source: 
+      EventPattern:
+        source:
             - "aws.autoscaling"
-        detail-type: 
-            - "EC2 Instance-launch Lifecycle Action" 
-            - "EC2 Instance-terminate Lifecycle Action" 
+        detail-type:
+            - "EC2 Instance-launch Lifecycle Action"
+            - "EC2 Instance-terminate Lifecycle Action"
         detail:
             AutoScalingGroupName:
               - !Ref NPAPublisherAutoscallingGroup
       State: "ENABLED"
-      Targets: 
-        - 
-          Arn: 
-            Fn::GetAtt: 
+      Targets:
+        -
+          Arn:
+            Fn::GetAtt:
                 - "NPACallNetskopeAPIv2LF"
                 - "Arn"
           Id: "NPALifecycleFunction"
-    
-  PermissionForEventsToInvokeLifecycleLambda: 
+
+  PermissionForEventsToInvokeLifecycleLambda:
     Type: 'AWS::Lambda::Permission'
-    Properties: 
+    Properties:
       FunctionName: !Ref NPACallNetskopeAPIv2LF
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
-      SourceArn: 
-        Fn::GetAtt: 
+      SourceArn:
+        Fn::GetAtt:
           - "NPAPublisherLifecycleEventRule"
           - "Arn"
 
   NPACallNetskopeAPIv2LF:
       Type: 'AWS::Lambda::Function'
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W89
+              reason: "Lambda functions require internet access to call Netskope REST API v2"
+            - id: W92
+              reason: "Concurrent execution limits not required for this use case - lifecycle hooks have timeout protection"
+            - id: W58
+              reason: "DLQ not required - failures are handled by Auto Scaling lifecycle hook timeout and retry"
       Properties:
         FunctionName: !Sub "${NPAPublisherGroupName}LambdaFunction"
         Description: >-
@@ -366,30 +491,46 @@ Resources:
         Handler: 'lambda_function.lambda_handler'
         Role: !GetAtt NPACallNetskopeAPIv2LFRole.Arn
         Code:
-           S3Bucket: !Join [ '-', [ !FindInMap ["SourceCode", "General", "S3Bucket"], !Ref 'AWS::Region']] 
-           S3Key: !Join ['/', [!FindInMap ["SourceCode", "General", "S3Prefix"], 'NPAPublisherAutoscalling.zip']]
+           S3Bucket: !Sub
+             - '${Bucket}-${AWS::Region}'
+             - Bucket: !FindInMap [SourceCode, General, S3Bucket]
+           S3Key: !Sub
+             - '${Prefix}/NPAPublisherAutoscalling.zip'
+             - Prefix: !FindInMap [SourceCode, General, S3Prefix]
         Environment:
           Variables:
             tenant_fqdn: !Ref NetskopeTenantFQDN
-            api_token: 
+            api_token:
               'Fn::If':
                   - ToProvisionNewAPIToken
                   - !Ref APISecret
                   - !Ref ExistingNetskopeAPITokenARN
             LOGLEVEL: 'INFO'
-        Runtime: python3.9
+        Runtime: python3.12
         MemorySize: 128
         Timeout: 300
-        Tags: 
+        Tags:
           - Key: Type
             Value: NPAAutoscallingManagement
+          - Key: CostCenter
+            Value: !Ref CostCenterTag
+          - Key: Project
+            Value: !Ref ProjectTag
+          - Key: Environment
+            Value: !Ref EnvironmentTag
   NetskopeNPACustomResourceLFRole:
       Type: 'AWS::IAM::Role'
-      Properties: 
-        RoleName: !Sub '${NPAPublisherGroupName}CustomResourceLFRole${AWS::Region}'
-        Tags: 
+      Properties:
+        RoleName: !Sub '${NPAPublisherGroupName}-CustomResourceLFRole-${AWS::Region}'
+        Tags:
           - Key: Type
             Value: NetskopeNPACustomResourceLFRole
+          - Key: CostCenter
+            Value: !Ref CostCenterTag
+          - Key: Project
+            Value: !Ref ProjectTag
+          - Key: Environment
+            Value: !Ref EnvironmentTag
         AssumeRolePolicyDocument:
           Statement:
             - Effect: Allow
@@ -400,7 +541,7 @@ Resources:
                 - sts:AssumeRole
         Path: '/'
         Policies:
-            - PolicyName: !Sub '${NPAPublisherGroupName}CustomResourceLFPolicy{AWS::Region}'
+            - PolicyName: !Sub '${NPAPublisherGroupName}-CustomResourceLFPolicy-${AWS::Region}'
               PolicyDocument:
                 Statement:
                   - Effect: Allow
@@ -409,16 +550,25 @@ Resources:
                       - "logs:CreateLogStream"
                       - "logs:PutLogEvents"
                     Resource:
-                      - "*"
+                      - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-NetskopeNPACustomResourceLF-*:*'
                   - Effect: Allow
                     Action:
                       - "autoscaling:UpdateAutoScalingGroup"
                     Resource:
-                      -  !Join [ '/', [!Sub 'arn:aws:autoscaling:*:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName', !Ref NPAPublisherAutoscallingGroup ]]
-                          
+                      -  !Sub 'arn:${AWS::Partition}:autoscaling:*:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${NPAPublisherAutoscallingGroup}'
+
   NetskopeNPACustomResourceLF:
       Type: 'AWS::Lambda::Function'
-      DependsOn: 
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W89
+              reason: "Lambda functions require internet access to call Netskope REST API v2"
+            - id: W92
+              reason: "Concurrent execution limits not required for this use case - lifecycle hooks have timeout protection"
+            - id: W58
+              reason: "DLQ not required - failures are handled by Auto Scaling lifecycle hook timeout and retry"
+      DependsOn:
         - NPAPublisherLifecycleHookLAUNCHING
         - NPAPublisherLifecycleHookTERMINATING
         - NPAPublisherAutoscallingGroup
@@ -429,10 +579,10 @@ Resources:
         Description: >-
           This is custom resource lambda function to update NPAPublisher Auto Scalling Group capacity.
         Handler: index.handler
-        Role: !GetAtt 
+        Role: !GetAtt
           - NetskopeNPACustomResourceLFRole
           - Arn
-        Runtime: python3.8
+        Runtime: python3.12
         Timeout: 60
         Code:
           ZipFile: |
@@ -469,11 +619,16 @@ Resources:
                   responseStatus = 'FAILED'
                   responseData = {'Failure': 'Something bad happened.'}
               cfnresponse.send(event, context, responseStatus, responseData)
-        Runtime: python3.6
-        Tags: 
+        Tags:
           - Key: Type
             Value: NetskopeCloudExchangecustomResourceLF
-        
+          - Key: CostCenter
+            Value: !Ref CostCenterTag
+          - Key: Project
+            Value: !Ref ProjectTag
+          - Key: Environment
+            Value: !Ref EnvironmentTag
+
   NetskopeNPACustomResourceLFTrigger:
     Type: 'Custom::LambdaTrigger'
     Properties:
@@ -485,4 +640,3 @@ Resources:
 
 
 
-  
